@@ -328,8 +328,93 @@ self.addEventListener('message', (event) => {
 });
 
 // ============================================
+// EVENTO: Push Notifications
+// ============================================
+self.addEventListener('push', (event) => {
+    console.log('[SW] 🔔 Push notification recibida');
+
+    let data = {
+        title: 'Tienda Sportsls',
+        body: 'Tienes una nueva notificación',
+        icon: '/assets/icons/icon-192x192.png',
+        badge: '/assets/icons/icon-72x72.png',
+        url: '/'
+    };
+
+    // Parsear datos si vienen en el push
+    if (event.data) {
+        try {
+            data = { ...data, ...event.data.json() };
+        } catch (e) {
+            data.body = event.data.text();
+        }
+    }
+
+    const options = {
+        body: data.body,
+        icon: data.icon,
+        badge: data.badge,
+        vibrate: [200, 100, 200],
+        data: {
+            url: data.url,
+            timestamp: Date.now()
+        },
+        actions: [
+            {
+                action: 'view',
+                title: 'Ver detalles'
+            },
+            {
+                action: 'close',
+                title: 'Cerrar'
+            }
+        ],
+        tag: 'tienda-sportsls',
+        requireInteraction: false
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
+});
+
+// ============================================
+// EVENTO: Notification Click
+// ============================================
+self.addEventListener('notificationclick', (event) => {
+    console.log('[SW] 🖱️ Click en notificación');
+
+    event.notification.close();
+
+    if (event.action === 'close') {
+        return;
+    }
+
+    // Abrir URL de la notificación
+    const urlToOpen = event.notification.data?.url || '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clientList) => {
+                // Buscar si ya hay una ventana abierta
+                for (const client of clientList) {
+                    if (client.url === urlToOpen && 'focus' in client) {
+                        return client.focus();
+                    }
+                }
+
+                // Si no hay ventana abierta, abrir una nueva
+                if (clients.openWindow) {
+                    return clients.openWindow(urlToOpen);
+                }
+            })
+    );
+});
+
+// ============================================
 // LOG INICIAL
 // ============================================
 console.log(`[SW ${CACHE_VERSION}] 📱 Service Worker cargado`);
 console.log(`[SW] 🔧 Timeout de red: ${NETWORK_TIMEOUT}ms`);
 console.log(`[SW] 📦 Assets del Shell: ${SHELL_ASSETS.length}`);
+console.log(`[SW] 🔔 Push notifications habilitadas`);
